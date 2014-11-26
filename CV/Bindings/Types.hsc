@@ -6,6 +6,7 @@ import Foreign.C.Types
 import Foreign.Storable
 import Foreign.Ptr
 import Foreign.Marshal.Utils
+import Foreign.Marshal.Alloc
 import Foreign.Marshal.Array
 import Utils.GeometryClass
 import Utils.Rectangle
@@ -87,7 +88,9 @@ cvSeqToList ptrseq = do
    seq <- peek ptrseq
    dest <- mallocArray (fromIntegral $ c'CvSeq'total seq)
    c'extractCVSeq ptrseq (castPtr dest)
-   peekArray (fromIntegral $ c'CvSeq'total seq) dest
+   ret <- peekArray (fromIntegral $ c'CvSeq'total seq) dest
+   free dest
+   return ret
 
 -- | A version of `cvSeqToList` that returns a vector instead. All the warnings of `CvSeqToList` apply.
 cvSeqToVector :: (U.Unbox a, Storable a) => Ptr C'CvSeq -> IO (U.Vector a)
@@ -264,9 +267,9 @@ data TermCriteria = EPS Double | ITER Int deriving (Show, Eq)
 toCvTCrit (EPS d) = C'CvTermCriteria c'CV_TERMCRIT_EPS 0 d
 toCvTCrit (ITER i) = C'CvTermCriteria c'CV_TERMCRIT_ITER (fromIntegral i) 0
 
-#num CV_TERMCRIT_ITER    
-#num CV_TERMCRIT_NUMBER  
-#num CV_TERMCRIT_EPS     
+#num CV_TERMCRIT_ITER
+#num CV_TERMCRIT_NUMBER
+#num CV_TERMCRIT_EPS
 
 
 
@@ -320,7 +323,7 @@ withNewMemory fun = do
 #num CV_COUNTER_CLOCKWISE
 
 #starttype CvConvexityDefect
-#field start      , Ptr <CvPoint  
+#field start      , Ptr <CvPoint
 #field end        , Ptr <CvPoint>
 #field depth_point, Ptr <CvPoint>
 #field depth      , CFloat
@@ -338,4 +341,3 @@ instance Point2D C'CvSURFPoint where
    type ELP C'CvSURFPoint = Float
    pt (C'CvSURFPoint (C'CvPoint2D32f x y) _ _ _ _) = (realToFrac x,realToFrac y)
    toPt (x,y) = C'CvSURFPoint (C'CvPoint2D32f (realToFrac x) (realToFrac y)) 0 0 0 0
-
