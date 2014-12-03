@@ -90,9 +90,9 @@ module CV.Image (
 , bgrToRgb
 , rgbToBgr
 , cloneTo64F
-, unsafeImageTo32F 
-, unsafeImageTo64F 
-, unsafeImageTo8Bit 
+, unsafeImageTo32F
+, unsafeImageTo64F
+, unsafeImageTo8Bit
 
 -- * Low level access operations
 , BareImage(..)
@@ -199,7 +199,7 @@ withImage (S i) op = withBareImage i op
 
 withRawImageData :: Image c d -> (Int -> Ptr Word8 -> IO a) -> IO a
 withRawImageData (S i) op = withBareImage i $ \pp-> do
-                             d  <- {#get IplImage->imageData#} pp 
+                             d  <- {#get IplImage->imageData#} pp
                              wd <- {#get IplImage->widthStep#} pp
                              op (fromIntegral wd) (castPtr d)
 
@@ -243,6 +243,15 @@ creatingBareImage fun = do
 --              {#call incrImageC#} -- Uncomment this line to get statistics of number of images allocated by ghc
               fptr <- newForeignPtr iptr (freeBareImage iptr)
               return . BareImage $ fptr
+
+creatingMaybeBareImage fun = do
+  iptr <- fun
+  if iptr == nullPtr
+    then return Nothing
+    else do
+    -- {#call incrImageC#} -- Uncomment this line to get statistics of number of images allocated by ghc
+    fptr <- newForeignPtr iptr (freeBareImage iptr)
+    return . Just . BareImage $ fptr
 
 unImage (S (BareImage fptr)) = fptr
 
@@ -332,13 +341,16 @@ instance Loadable ((Image GrayScale D8)) where
 --   polymorphic enough to cause run time errors if the declared and actual types of the
 --   images do not match. Use with care.
 unsafeloadUsing x p n = do
-              exists <- doesFileExist n
-              if not exists then return Nothing
-                            else do
-                              i <- withCString n $ \name ->
-                                     creatingBareImage ({#call cvLoadImage #} name p)
-                              bw <- x i
-                              return . Just . S $ bw
+  exists <- doesFileExist n
+  if not exists then return Nothing
+    else do
+    mi <- withCString n $ \name ->
+      creatingMaybeBareImage ({#call cvLoadImage #} name p)
+    case mi of
+      Nothing -> return Nothing
+      Just i -> do
+        bw <- x i
+        return . Just . S $ bw
 
 loadImage :: FilePath -> IO (Maybe (Image GrayScale D32))
 loadImage = unsafeloadUsing imageTo32F 0
@@ -813,7 +825,7 @@ tileImages image1 image2 (x,y) = unsafePerformIO $
                                  creatingImage ({#call simpleMergeImages#}
                                                 i1 i2 x y)
 -- | Blit image2 onto image1.
-class Blittable channels depth 
+class Blittable channels depth
 instance Blittable GrayScale D32
 instance Blittable RGB D32
 
@@ -824,13 +836,13 @@ blit image1 image2 (x,y) = do
     if x+w2>w1 || y+h2>h1 || x<0 || y<0
             then error $ "Bad blit sizes: " ++ show [(w1,h1),(w2,h2)]++"<-"++show (x,y)
             else withMutableImage image1 $ \i1 ->
-                   withImage image2 $ \i2 -> 
+                   withImage image2 $ \i2 ->
                     ({#call plainBlit#} i1 i2 (fromIntegral y) (fromIntegral x))
 
 -- | Create an image by blitting multiple images onto an empty image.
-blitM :: (CreateImage (MutableImage GrayScale D32)) => 
+blitM :: (CreateImage (MutableImage GrayScale D32)) =>
     (Int,Int) -> [((Int,Int),Image GrayScale D32)] -> Image GrayScale D32
-blitM (rw,rh) imgs = unsafePerformIO $ resultPic >>= fromMutable 
+blitM (rw,rh) imgs = unsafePerformIO $ resultPic >>= fromMutable
     where
      resultPic = do
                     r <- create (fromIntegral rw,fromIntegral rh)
@@ -877,7 +889,7 @@ toMutable img = withGenImage img $ \image ->
                     Mutable <$> creatingImage ({#call cvCloneImage #} image)
 
 fromMutable :: MutableImage a b -> IO (Image a b)
-fromMutable (Mutable img) = cloneImage img 
+fromMutable (Mutable img) = cloneImage img
 
 -- | Create a copy of a non-types image
 cloneBareImage :: BareImage -> IO BareImage
@@ -918,7 +930,7 @@ cloneTo64F img = withGenImage img $ \image ->
 -- | Convert an image to from arbitrary bit depth into 64 bit, floating point, image.
 --   This conversion does preserve the color space.
 -- Note: this function is named unsafe because it will lose information
--- from the image. 
+-- from the image.
 unsafeImageTo64F :: Image c d -> Image c D64
 unsafeImageTo64F img = unsafePerformIO $ withGenImage img $ \image ->
                 creatingImage
@@ -927,7 +939,7 @@ unsafeImageTo64F img = unsafePerformIO $ withGenImage img $ \image ->
 -- | Convert an image to from arbitrary bit depth into 32 bit, floating point, image.
 --   This conversion does preserve the color space.
 -- Note: this function is named unsafe because it will lose information
--- from the image. 
+-- from the image.
 unsafeImageTo32F :: Image c d -> Image c D32
 unsafeImageTo32F img = unsafePerformIO $ withGenImage img $ \image ->
                 creatingImage
@@ -936,7 +948,7 @@ unsafeImageTo32F img = unsafePerformIO $ withGenImage img $ \image ->
 -- | Convert an image to from arbitrary bit depth into 8 bit image.
 --   This conversion does preserve the color space.
 -- Note: this function is named unsafe because it will lose information
--- from the image. 
+-- from the image.
 unsafeImageTo8Bit :: Image cspace a -> Image cspace D8
 unsafeImageTo8Bit img =
     unsafePerformIO $ withGenImage img $ \image ->
@@ -997,7 +1009,7 @@ resetROI image = withMutableImage image $ \i ->
 
 setCOI :: (Enum a) => a -> MutableImage (ChannelOf a) d -> IO ()
 setCOI chnl image = withMutableImage image $ \i ->
-                            {#call cvSetImageCOI#} i (fromIntegral . (+1) . fromEnum $ chnl) 
+                            {#call cvSetImageCOI#} i (fromIntegral . (+1) . fromEnum $ chnl)
                             -- CV numbers channels starting from 1. 0 means all channels
 
 resetCOI :: MutableImage a d -> IO ()
@@ -1122,7 +1134,7 @@ montage (u',v') space' imgs
                     sequence_ [blit r i (edge +  x*xstep, edge + y*ystep)
                                | y <- [0..v-1] , x <- [0..u-1]
                                | i <- imgs ]
-                    let (Mutable i) = r 
+                    let (Mutable i) = r
                     i `seq` return i
 
 data CvException = CvException Int String String String Int
@@ -1145,4 +1157,3 @@ setCatch = do
    cb <- mk'CvErrorCallback catch
    c'cvRedirectError cb nullPtr nullPtr
    c'cvSetErrMode c'CV_ErrModeSilent
-
