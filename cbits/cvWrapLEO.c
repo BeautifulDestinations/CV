@@ -769,6 +769,28 @@ void alphaBlit(IplImage *a, IplImage *aAlpha, IplImage *b, IplImage *bAlpha, int
         }
 }
 
+void alphaBlit2(IplImage *a, IplImage *b, int offset_y, int offset_x)
+{
+    // TODO: Add checks for image type and size
+    int i,j;
+    CvSize bSize = cvGetSize(b);
+    CvSize aSize = cvGetSize(a);
+    CvRect pos = cvRect(offset_x
+            ,offset_y
+            ,bSize.width
+            ,bSize.height);
+    for (i=0; i<bSize.height; i++)
+        for (j=0; j<bSize.width; j++) {
+            float aA, bA,fV;
+            if (j+offset_x>=aSize.width || i+offset_y>=aSize.height || i+offset_y < 0 || j+offset_x<0) continue;
+
+            aA = UGETC(a,3,j+offset_x,i+offset_y);
+            bA = UGETC(b,3,j,i);
+            fV = aA+bA > 0 ? (FGET(b,j,i)*bA+FGET(a,j+offset_x,i+offset_y)*aA)/(aA+bA) : FGET(b,j,i) ;
+            FGET(a,j+offset_x,i+offset_y) =fV;
+            UGETC(a,3,j+offset_x,i+offset_y) =aA+bA;
+        }
+}
 
 void plainBlit(IplImage *a, IplImage *b, int offset_y, int offset_x)
 {

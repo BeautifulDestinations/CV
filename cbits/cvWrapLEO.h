@@ -242,6 +242,7 @@ IplImage* templateImage(const IplImage* target, const IplImage* template);
 IplImage* simpleMergeImages(IplImage *a, IplImage *b,int offset_x, int offset_y);
 
 void alphaBlit(IplImage *a, IplImage *aAlpha, IplImage *b, IplImage *bAlpha, int offset_x, int offset_y);
+void alphaBlit2(IplImage *a, IplImage *b, int offset_x, int offset_y);
 void blitImg(IplImage *a, IplImage *b,int offset_x, int offset_y);
 IplImage* fadedEdges(int w, int h, int edgeW);
 IplImage* rectangularDistance(int w, int h);

@@ -27,6 +27,7 @@ module CV.Image (
 , BGR
 , RGB
 , RGBA
+, BGRA
 , RGB_Channel(..)
 , LAB
 , LAB_Channel(..)
@@ -44,6 +45,7 @@ module CV.Image (
 , Loadable(..)
 , saveImage
 , loadColorImage
+, loadColorAlphaImage
 , loadImage
 
 -- * Pixel level access
@@ -74,6 +76,7 @@ module CV.Image (
 
 -- * Blitting
 , blendBlit
+, blendBlit2
 , blit
 , blitM
 , subPixelBlit
@@ -166,6 +169,7 @@ data BGR
 data LAB
 data YUV
 data RGBA
+data BGRA
 data LAB_Channel = LAB_L | LAB_A | LAB_B deriving (Eq,Ord,Enum)
 data YUV_Channel = YUV_Y | YUV_U | YUV_V deriving (Eq,Ord,Enum)
 
@@ -361,6 +365,24 @@ loadColorImage = unsafeloadUsing imageTo32F 1
 loadColorImage8 :: FilePath -> IO (Maybe (Image BGR D8))
 loadColorImage8 = unsafeloadUsing imageTo8Bit 1
 
+
+foreign import ccall safe "CV/Image.chs.h cvLoadImage"
+  cvLoadImageWithOpts :: ((Ptr CChar) -> (CInt -> (CInt -> (IO (Ptr (BareImage))))))
+
+loadColorAlphaImage :: FilePath -> IO (Maybe (Image BGRA D32))
+loadColorAlphaImage = unsafeloadUsing imageTo32F 1
+  where
+    unsafeloadUsing x p n = do
+      exists <- doesFileExist n
+      if not exists then return Nothing
+        else do
+        mi <- withCString n $ \name ->
+          creatingMaybeBareImage (cvLoadImageWithOpts name (-1) p) -- CV_LOAD_IMAGE_UNCHANGED
+        case mi of
+          Nothing -> return Nothing
+          Just i -> do
+            bw <- x i
+            return . Just . S $ bw
 
 instance Sized (MutableImage a b) where
     type Size (MutableImage a b) = IO (Int,Int)
@@ -735,6 +757,8 @@ instance CreateImage (Image RGB D32) where
     create (w,h) = creatingImage $ {#call wrapCreateImage32F#} (fromIntegral w) (fromIntegral h) 3
 instance CreateImage (Image RGBA D32) where
     create (w,h) = creatingImage $ {#call wrapCreateImage32F#} (fromIntegral w) (fromIntegral h) 4
+instance CreateImage (Image BGRA D32) where
+    create (w,h) = creatingImage $ {#call wrapCreateImage32F#} (fromIntegral w) (fromIntegral h) 4
 instance CreateImage (Image BGR D32) where
     create (w,h) = creatingImage $ {#call wrapCreateImage32F#} (fromIntegral w) (fromIntegral h) 3
 
@@ -780,6 +804,9 @@ instance Save (Image BGR D32) where
 
 instance Save (Image RGB D32) where
     save filename image = primitiveSave filename (swapRB . unS . unsafeImageTo8Bit $ image)
+
+instance Save (Image BGRA D32) where
+    save filename image = primitiveSave filename (unS . unsafeImageTo8Bit $ image)
 
 instance Save (Image RGB D8) where
     save filename image = primitiveSave filename  (swapRB . unS $ image)
@@ -880,6 +907,16 @@ blendBlit image1 image1Alpha image2 image2Alpha (x,y) =
                                   withImage image2 $ \i2 ->
                                    ({#call alphaBlit#} i1 i1a i2 i2a y x)
 
+blendBlit2Helper :: MutableImage c d -> Image c1 d1 -> (Int, Int) -> IO ()
+blendBlit2Helper image1 image2 (x,y) =
+   withMutableImage image1 $ \i1 ->
+      withImage image2 $ \i2 ->
+       ({#call alphaBlit2#} i1 i2 (fromIntegral y) (fromIntegral x))
+
+blendBlit2 img img2 pos = unsafePerformIO $ do
+  mutImg <- toMutable img
+  _ <- blendBlit2Helper mutImg img2 pos
+  fromMutable mutImg
 
 -- | Create a copy of an image
 cloneImage :: Image a b -> IO (Image a b)
