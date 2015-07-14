@@ -913,10 +913,13 @@ blendBlit2Helper image1 image2 (x,y) =
       withImage image2 $ \i2 ->
        ({#call alphaBlit2#} i1 i2 (fromIntegral y) (fromIntegral x))
 
+-- Is probably safe as mutable state is encapsulated
 blendBlit2 img img2 pos = unsafePerformIO $ do
-  mutImg <- toMutable img
-  _ <- blendBlit2Helper mutImg img2 pos
-  fromMutable mutImg
+  result <- withMutableClone img $ \mutImg -> do
+    blendBlit2Helper mutImg img2 pos
+    return mutImg
+  fromMutable result
+
 
 -- | Create a copy of an image
 cloneImage :: Image a b -> IO (Image a b)

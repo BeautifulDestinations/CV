@@ -15,6 +15,8 @@
 
 #define FGET(img,x,y) (((float *)((img)->imageData + (y)*(img)->widthStep))[(x)])
 #define UGETC(img,color,x,y) (((uint8_t *)((img)->imageData + (y)*(img)->widthStep))[(x)*3+(color)])
+#define UGET4C(img,color,x,y) (((uint8_t *)((img)->imageData + (y)*(img)->widthStep))[(x)*4+(color)])
+#define FGET4C(img,color,x,y) ((float) UGET4C(img,color,x,y))
 
 size_t images;
 
@@ -771,24 +773,26 @@ void alphaBlit(IplImage *a, IplImage *aAlpha, IplImage *b, IplImage *bAlpha, int
 
 void alphaBlit2(IplImage *a, IplImage *b, int offset_y, int offset_x)
 {
-    // TODO: Add checks for image type and size
     int i,j;
     CvSize bSize = cvGetSize(b);
     CvSize aSize = cvGetSize(a);
-    CvRect pos = cvRect(offset_x
-            ,offset_y
-            ,bSize.width
-            ,bSize.height);
+    // printf("A Height: %d , Width: %d",aSize.height, aSize.width);
+    // printf("B Height: %d , Width: %d",bSize.height, bSize.width);
     for (i=0; i<bSize.height; i++)
         for (j=0; j<bSize.width; j++) {
-            float aA, bA,fV;
+            float aA, bA;
+            uint8_t fV0, fV1, fV2;
             if (j+offset_x>=aSize.width || i+offset_y>=aSize.height || i+offset_y < 0 || j+offset_x<0) continue;
+            aA = UGET4C(a,3,j+offset_x,i+offset_y);
+            bA = UGET4C(b,3,j,i);
+            fV0 = (aA+bA) > 0 ? (UGET4C(b,0,j,i)*bA+UGET4C(a,0,j+offset_x,i+offset_y)*aA)/(aA+bA) : UGET4C(b,0,j,i) ;
+            fV1 = (aA+bA) > 0 ? (UGET4C(b,1,j,i)*bA+UGET4C(a,1,j+offset_x,i+offset_y)*aA)/(aA+bA) : UGET4C(b,1,j,i) ;
+            fV2 = (aA+bA) > 0 ? (UGET4C(b,2,j,i)*bA+UGET4C(a,2,j+offset_x,i+offset_y)*aA)/(aA+bA) : UGET4C(b,2,j,i) ;
+            UGET4C(a,0,j+offset_x,i+offset_y) = fV0;
+            UGET4C(a,1,j+offset_x,i+offset_y) = fV1;
+            UGET4C(a,2,j+offset_x,i+offset_y) = fV2;
+            UGET4C(a,3,j+offset_x,i+offset_y) = (uint8_t) (aA+bA);
 
-            aA = UGETC(a,3,j+offset_x,i+offset_y);
-            bA = UGETC(b,3,j,i);
-            fV = aA+bA > 0 ? (FGET(b,j,i)*bA+FGET(a,j+offset_x,i+offset_y)*aA)/(aA+bA) : FGET(b,j,i) ;
-            FGET(a,j+offset_x,i+offset_y) =fV;
-            UGETC(a,3,j+offset_x,i+offset_y) =aA+bA;
         }
 }
 
