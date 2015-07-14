@@ -15,8 +15,7 @@
 
 #define FGET(img,x,y) (((float *)((img)->imageData + (y)*(img)->widthStep))[(x)])
 #define UGETC(img,color,x,y) (((uint8_t *)((img)->imageData + (y)*(img)->widthStep))[(x)*3+(color)])
-#define UGET4C(img,color,x,y) (((uint8_t *)((img)->imageData + (y)*(img)->widthStep))[(x)*4+(color)])
-#define FGET4C(img,color,x,y) ((float) UGET4C(img,color,x,y))
+#define U32GET4C(img,color,x,y) (((uint32_t *)((img)->imageData + (y)*(img)->widthStep))[(x)*4+(color)])
 
 size_t images;
 
@@ -780,18 +779,19 @@ void alphaBlit2(IplImage *a, IplImage *b, int offset_y, int offset_x)
     // printf("B Height: %d , Width: %d",bSize.height, bSize.width);
     for (i=0; i<bSize.height; i++)
         for (j=0; j<bSize.width; j++) {
-            float aA, bA;
-            uint8_t fV0, fV1, fV2;
+            double aA, bA, fV0, fV1, fV2;
+            double aAbASum;
             if (j+offset_x>=aSize.width || i+offset_y>=aSize.height || i+offset_y < 0 || j+offset_x<0) continue;
-            aA = UGET4C(a,3,j+offset_x,i+offset_y);
-            bA = UGET4C(b,3,j,i);
-            fV0 = (aA+bA) > 0 ? (UGET4C(b,0,j,i)*bA+UGET4C(a,0,j+offset_x,i+offset_y)*aA)/(aA+bA) : UGET4C(b,0,j,i) ;
-            fV1 = (aA+bA) > 0 ? (UGET4C(b,1,j,i)*bA+UGET4C(a,1,j+offset_x,i+offset_y)*aA)/(aA+bA) : UGET4C(b,1,j,i) ;
-            fV2 = (aA+bA) > 0 ? (UGET4C(b,2,j,i)*bA+UGET4C(a,2,j+offset_x,i+offset_y)*aA)/(aA+bA) : UGET4C(b,2,j,i) ;
-            UGET4C(a,0,j+offset_x,i+offset_y) = fV0;
-            UGET4C(a,1,j+offset_x,i+offset_y) = fV1;
-            UGET4C(a,2,j+offset_x,i+offset_y) = fV2;
-            UGET4C(a,3,j+offset_x,i+offset_y) = (uint8_t) (aA+bA);
+            aA = U32GET4C(a,3,j+offset_x,i+offset_y);
+            bA = U32GET4C(b,3,j,i);
+            aAbASum = aA+bA > 4294967295 ? 4294967295 : aA+bA;
+            fV0 = aAbASum > 0 ? (U32GET4C(b,0,j,i)*bA+U32GET4C(a,0,j+offset_x,i+offset_y)*aA)/aAbASum : U32GET4C(b,0,j,i) ;
+            fV1 = aAbASum > 0 ? (U32GET4C(b,1,j,i)*bA+U32GET4C(a,1,j+offset_x,i+offset_y)*aA)/aAbASum : U32GET4C(b,1,j,i) ;
+            fV2 = aAbASum > 0 ? (U32GET4C(b,2,j,i)*bA+U32GET4C(a,2,j+offset_x,i+offset_y)*aA)/aAbASum : U32GET4C(b,2,j,i) ;
+            U32GET4C(a,0,j+offset_x,i+offset_y) = fV0;
+            U32GET4C(a,1,j+offset_x,i+offset_y) = fV1;
+            U32GET4C(a,2,j+offset_x,i+offset_y) = fV2;
+            U32GET4C(a,3,j+offset_x,i+offset_y) = aAbASum;
 
         }
 }
