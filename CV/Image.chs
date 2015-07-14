@@ -52,10 +52,10 @@ module CV.Image (
 , GetPixel(..)
 , SetPixel(..)
 , safeGetPixel
+, unsafeSetPixel
 , getAllPixels
 , getAllPixelsRowMajor
 , mapImageInplace
-
 -- * Image information
 , ImageDepth
 , Sized(..)
@@ -1146,6 +1146,15 @@ instance SetPixel (MutableImage Complex D32) where
                              poke (castPtr (d`plusPtr` (y*cs + (x*2+1)*fs))) im
 
 
+unsafeSetPixel (x,y) (r,g,b, a) c_i = do
+   d <- {#get IplImage->imageData#} c_i
+   s <- {#get IplImage->widthStep#} c_i
+   let cs = fromIntegral s
+       fs = sizeOf (undefined :: D8)
+   poke (castPtr (d`plusPtr` (y*cs +x*4*fs)))     b
+   poke (castPtr (d`plusPtr` (y*cs +(x*4+1)*fs))) g
+   poke (castPtr (d`plusPtr` (y*cs +(x*4+2)*fs))) r
+   poke (castPtr (d`plusPtr` (y*cs +(x*4+3)*fs))) a
 
 getAllPixels image =  [getPixel (i,j) image
                       | i <- [0..width-1 ]
