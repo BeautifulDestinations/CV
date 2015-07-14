@@ -369,8 +369,8 @@ loadColorImage8 = unsafeloadUsing imageTo8Bit 1
 foreign import ccall safe "CV/Image.chs.h cvLoadImage"
   cvLoadImageWithOpts :: ((Ptr CChar) -> (CInt -> (CInt -> (IO (Ptr (BareImage))))))
 
-loadColorAlphaImage :: FilePath -> IO (Maybe (Image BGRA D32))
-loadColorAlphaImage = unsafeloadUsing imageTo32F 1
+loadColorAlphaImage :: FilePath -> IO (Maybe (Image BGRA D8))
+loadColorAlphaImage = unsafeloadUsing imageTo8Bit 1
   where
     unsafeloadUsing x p n = do
       exists <- doesFileExist n
@@ -779,6 +779,8 @@ instance CreateImage (Image RGB D8) where
     create (w,h) = creatingImage $ {#call wrapCreateImage8U#} (fromIntegral w) (fromIntegral h) 3
 instance CreateImage (Image RGBA D8) where
     create (w,h) = creatingImage $ {#call wrapCreateImage8U#} (fromIntegral w) (fromIntegral h) 4
+instance CreateImage (Image BGRA D8) where
+    create (w,h) = creatingImage $ {#call wrapCreateImage8U#} (fromIntegral w) (fromIntegral h) 4
 
 instance CreateImage (Image c d) => CreateImage (MutableImage c d) where
     create s = Mutable <$> create s
@@ -805,8 +807,8 @@ instance Save (Image BGR D32) where
 instance Save (Image RGB D32) where
     save filename image = primitiveSave filename (swapRB . unS . unsafeImageTo8Bit $ image)
 
-instance Save (Image BGRA D32) where
-    save filename image = primitiveSave filename (unS . unsafeImageTo8Bit $ image)
+instance Save (Image BGRA D8) where
+    save filename image = primitiveSave filename (unS $ image)
 
 instance Save (Image RGB D8) where
     save filename image = primitiveSave filename  (swapRB . unS $ image)
