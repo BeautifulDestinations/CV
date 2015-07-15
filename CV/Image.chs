@@ -58,6 +58,7 @@ module CV.Image (
 , getAllPixels
 , getAllPixelsRowMajor
 , mapImageInplace
+, mapColourImageInplace
 -- * Image information
 , ImageDepth
 , Sized(..)
@@ -145,6 +146,7 @@ import Foreign.Marshal.Alloc
 import Foreign.Ptr
 import Foreign.ForeignPtr.Unsafe (unsafeForeignPtrToPtr)
 import Foreign.Storable
+import Foreign.Storable.Tuple
 import System.IO.Unsafe
 import Data.Word
 import qualified Data.Complex as C
@@ -678,6 +680,21 @@ instance  GetPixel (Image RGB D8) where
                                          r <- peek (castPtr (d`plusPtr` (y*cs +(x*3+2)*fs)))
                                          return (r,g,b)
 
+instance  GetPixel (Image BGRA D8) where
+    type P (Image BGRA D8) = (D8,D8,D8,D8)
+    {-#INLINE getPixel#-}
+    getPixel (x,y) i = unsafePerformIO $
+                        withGenImage i $ \c_i -> do
+                                         d <- {#get IplImage->imageData#} c_i
+                                         s <- {#get IplImage->widthStep#} c_i
+                                         let cs = fromIntegral s
+                                             fs = sizeOf (undefined :: D8)
+                                         b <- peek (castPtr (d`plusPtr` (y*cs +x*4*fs)))
+                                         g <- peek (castPtr (d`plusPtr` (y*cs +(x*4+1)*fs)))
+                                         r <- peek (castPtr (d`plusPtr` (y*cs +(x*4+2)*fs)))
+                                         a <- peek (castPtr (d`plusPtr` (y*cs +(x*4+3)*fs)))
+                                         return (b,g,r,a)
+
 instance GetPixel (Image LAB D32) where
     type P (Image LAB D32) = (D32,D32,D32)
     {-#INLINE getPixel#-}
@@ -707,6 +724,18 @@ mapImageInplace f image = withMutableImage image $ \c_i -> do
                    v <- peek (castPtr (d `plusPtr` (y*cs+x*fs)))
                    poke (castPtr (d `plusPtr` (y*cs+x*fs))) (f v)
 
+mapColourImageInplace :: (P (Image BGRA D8) -> P (Image BGRA D8))
+            -> MutableImage BGRA D8
+            -> IO ()
+mapColourImageInplace f image = withMutableImage image $ \c_i -> do
+             d <- {#get IplImage->imageData#} c_i
+             s <- {#get IplImage->widthStep#} c_i
+             (w,h) <- getSize image
+             let cs = fromIntegral s
+                 fs = sizeOf (undefined :: Float)
+             forM_ [(x,y) | x<-[0..w-1], y <- [0..h-1]] $ \(x,y) -> do
+                   v <- peek (castPtr (d `plusPtr` (y*cs+x*fs)))
+                   poke (castPtr (d `plusPtr` (y*cs+x*fs))) (f v)
 
 
 convert8UTo :: CvtCodes -> CInt -> BareImage -> BareImage
