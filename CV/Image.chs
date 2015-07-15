@@ -45,6 +45,8 @@ module CV.Image (
 , Loadable(..)
 , saveImage
 , loadColorImage
+, loadColorImage8
+, loadColorImage8'
 , loadColorAlphaImage
 , loadImage
 
@@ -92,6 +94,7 @@ module CV.Image (
 , rgbToLab
 , bgrToRgb
 , rgbToBgr
+, bgrTobgra
 , cloneTo64F
 , unsafeImageTo32F
 , unsafeImageTo64F
@@ -364,25 +367,14 @@ loadColorImage :: FilePath -> IO (Maybe (Image BGR D32))
 loadColorImage = unsafeloadUsing imageTo32F 1
 loadColorImage8 :: FilePath -> IO (Maybe (Image BGR D8))
 loadColorImage8 = unsafeloadUsing imageTo8Bit 1
-
+loadColorImage8' :: FilePath -> IO (Maybe (Image BGRA D8))
+loadColorImage8' fp = fmap bgrTobgra <$> unsafeloadUsing imageTo8Bit 1 fp
 
 foreign import ccall safe "CV/Image.chs.h cvLoadImage"
   cvLoadImageWithOpts :: ((Ptr CChar) -> (CInt -> (CInt -> (IO (Ptr (BareImage))))))
 
 loadColorAlphaImage :: FilePath -> IO (Maybe (Image BGRA D8))
-loadColorAlphaImage = unsafeloadUsing imageTo8Bit 1
-  where
-    unsafeloadUsing x p n = do
-      exists <- doesFileExist n
-      if not exists then return Nothing
-        else do
-        mi <- withCString n $ \name ->
-          creatingMaybeBareImage (cvLoadImageWithOpts name (-1) p) -- CV_LOAD_IMAGE_UNCHANGED
-        case mi of
-          Nothing -> return Nothing
-          Just i -> do
-            bw <- x i
-            return . Just . S $ bw
+loadColorAlphaImage = unsafeloadUsing imageTo8Bit (-1)
 
 instance Sized (MutableImage a b) where
     type Size (MutableImage a b) = IO (Int,Int)
@@ -562,6 +554,8 @@ rgbToGray8 = S . convert8UTo RGB2GRAY 1 . unS
 
 grayToRGB :: Image GrayScale D32 -> Image RGB D32
 grayToRGB = S . convertTo GRAY2BGR 3 . unS
+
+bgrTobgra = S . convert8UTo BGR2BGRA 4 . unS
 
 bgrToRgb :: Image BGR D8 -> Image RGB D8
 bgrToRgb = S . swapRB . unS
@@ -755,12 +749,12 @@ instance CreateImage (Image LAB D32) where
     create (w,h) = creatingImage $ {#call wrapCreateImage32F#} (fromIntegral w) (fromIntegral h) 3
 instance CreateImage (Image RGB D32) where
     create (w,h) = creatingImage $ {#call wrapCreateImage32F#} (fromIntegral w) (fromIntegral h) 3
+instance CreateImage (Image BGR D32) where
+    create (w,h) = creatingImage $ {#call wrapCreateImage32F#} (fromIntegral w) (fromIntegral h) 3
 instance CreateImage (Image RGBA D32) where
     create (w,h) = creatingImage $ {#call wrapCreateImage32F#} (fromIntegral w) (fromIntegral h) 4
 instance CreateImage (Image BGRA D32) where
     create (w,h) = creatingImage $ {#call wrapCreateImage32F#} (fromIntegral w) (fromIntegral h) 4
-instance CreateImage (Image BGR D32) where
-    create (w,h) = creatingImage $ {#call wrapCreateImage32F#} (fromIntegral w) (fromIntegral h) 3
 
 instance CreateImage (Image GrayScale D64) where
     create (w,h) = creatingImage $ {#call wrapCreateImage64F#} (fromIntegral w) (fromIntegral h) 1
@@ -806,6 +800,9 @@ instance Save (Image BGR D32) where
 
 instance Save (Image RGB D32) where
     save filename image = primitiveSave filename (swapRB . unS . unsafeImageTo8Bit $ image)
+
+instance Save (Image BGRA D32) where
+    save filename image = primitiveSave filename (unS . unsafeImageTo8Bit $ image)
 
 instance Save (Image BGRA D8) where
     save filename image = primitiveSave filename (unS $ image)

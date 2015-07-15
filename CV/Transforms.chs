@@ -94,9 +94,9 @@ scale tpe (x,y) img = unsafePerformIO $ do
                        ,round $ fromIntegral h*x)
 
 -- |Scale an image to a given size
-scaleToSize :: (CreateImage (Image c D32)) => 
-    Interpolation -> Bool -> (Int,Int) -> Image c D32 -> Image c D32
-scaleToSize tpe retainRatio (w,h) img = unsafePerformIO $ do
+scaleToSize' :: (CreateImage (Image c a)) => 
+    Interpolation -> Bool -> (Int,Int) -> Image c a -> Image c a
+scaleToSize' tpe retainRatio (w,h) img = unsafePerformIO $ do
                     target <- I.create (w',h') 
                     withGenImage img $ \i -> 
                      withGenImage target $ \t -> 
@@ -110,6 +110,10 @@ scaleToSize tpe retainRatio (w,h) img = unsafePerformIO $ do
                          else (w,h)
              ratio  = max (fromIntegral w/fromIntegral ow)
                           (fromIntegral h/fromIntegral oh)
+
+scaleToSize :: (CreateImage (Image c D32)) => 
+    Interpolation -> Bool -> (Int,Int) -> Image c D32 -> Image c D32
+scaleToSize = scaleToSize'
 
 -- |Apply a perspective transform to the image. The transformation 3x3 matrix is supplied as
 --  a row ordered, flat, list.
