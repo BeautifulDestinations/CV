@@ -885,6 +885,7 @@ tileImages image1 image2 (x,y) = unsafePerformIO $
 class Blittable channels depth
 instance Blittable GrayScale D32
 instance Blittable RGB D32
+instance Blittable BGRA D8
 
 blit :: Blittable c d => MutableImage c d -> Image c d -> (Int,Int) -> IO ()
 blit image1 image2 (x,y) = do
