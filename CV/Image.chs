@@ -95,7 +95,8 @@ module CV.Image (
 , rgbToLab
 , bgrToRgb
 , rgbToBgr
-, bgrTobgra
+, bgraTobgr8
+, bgrTobgra8
 , cloneTo64F
 , unsafeImageTo32F
 , unsafeImageTo64F
@@ -370,11 +371,7 @@ loadColorImage = unsafeloadUsing imageTo32F 1
 loadColorImage8 :: FilePath -> IO (Maybe (Image BGR D8))
 loadColorImage8 = unsafeloadUsing imageTo8Bit 1
 loadColorImage8' :: FilePath -> IO (Maybe (Image BGRA D8))
-loadColorImage8' fp = fmap bgrTobgra <$> unsafeloadUsing imageTo8Bit 1 fp
-
-foreign import ccall safe "CV/Image.chs.h cvLoadImage"
-  cvLoadImageWithOpts :: ((Ptr CChar) -> (CInt -> (CInt -> (IO (Ptr (BareImage))))))
-
+loadColorImage8' fp = fmap bgrTobgra8 <$> unsafeloadUsing imageTo8Bit 1 fp
 loadColorAlphaImage :: FilePath -> IO (Maybe (Image BGRA D8))
 loadColorAlphaImage = unsafeloadUsing imageTo8Bit (-1)
 
@@ -557,7 +554,11 @@ rgbToGray8 = S . convert8UTo RGB2GRAY 1 . unS
 grayToRGB :: Image GrayScale D32 -> Image RGB D32
 grayToRGB = S . convertTo GRAY2BGR 3 . unS
 
-bgrTobgra = S . convert8UTo BGR2BGRA 4 . unS
+bgraTobgr8 :: Image BGRA D8 -> Image BGR D8
+bgraTobgr8 = S . convert8UTo BGRA2BGR 3 . unS
+
+bgrTobgra8 :: Image BGR D8 -> Image BGRA D8
+bgrTobgra8 = S . convert8UTo BGR2BGRA 4 . unS
 
 bgrToRgb :: Image BGR D8 -> Image RGB D8
 bgrToRgb = S . swapRB . unS

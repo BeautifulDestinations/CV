@@ -6,6 +6,7 @@
 module CV.Filters(
                gaussian,gaussianOp
               ,blurOp,blur,blurNS
+              ,gaussianColour
               ,bilateral
               ,HasMedianFiltering,median
               ,susan,getCentralMoment,getAbsCentralMoment
@@ -113,9 +114,26 @@ usingMask (w,h) op
     | maskIsOk (w,h) = ImgOp $ op (w,h)
     | otherwise = error "One of aperture dimensions is incorrect (should be >=1 and odd))"
 
+class GaussianColour a where
+    gaussianColour :: (Int,Int) -> (Double, Double) -> a -> a
 
+instance GaussianColour (Image BGR D8) where
+    gaussianColour = gaussianColour'
 
--- | Apply bilateral filtering 
+instance GaussianColour (Image RGB D8) where
+    gaussianColour = gaussianColour'
+
+-- | Apply gaussian filtering
+gaussianColour' :: (Int,Int) -> (Double,Double) -> Image a D8 -> Image a D8
+gaussianColour' (w,h) (s1,s2) img = unsafePerformIO $
+            withClone img $ \clone ->
+             withGenImage img $ \cimg ->
+              withGenImage clone $ \ccln -> do
+                   {#call cvSmooth#} cimg ccln  (fromIntegral $ fromEnum Gaussian)
+                        (fromIntegral w) (fromIntegral h)
+                        (realToFrac s1) (realToFrac s2)
+
+-- | Apply bilateral filtering
 bilateral :: (Int,Int) -> (Int,Int) -> Image a D8 -> Image a D8
 bilateral (w,h) (s1,s2) img = unsafePerformIO $ 
             withClone img $ \clone ->
