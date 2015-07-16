@@ -14,8 +14,8 @@ module CV.Drawing(
                 ,Drawable(..)
                 -- * Extra drawing operations
                 ,drawLinesOp
-                ,drawPolyLineOp 
-                ,drawBox2Dop 
+                ,drawPolyLineOp
+                ,drawBox2Dop
                 -- * Floodfill operations
                 ,fillOp
                 ,floodfill
@@ -101,6 +101,26 @@ instance Drawable RGB D32 where
     fillPolyOp   (r,g,b)  = primFillPolyOp (r,g,b)
     ellipseOp    (r,g,b)  = primEllipseOp (r,g,b)
 
+instance Drawable BGRA D8 where
+    type Color BGRA D8 = (D8,D8,D8,D8)
+    putTextOp    (r,g,b,_)  = primTextOp      (r,g,b)
+    lineOp       (r,g,b,_)  = primLineOp      (r,g,b)
+    circleOp     (r,g,b,_)  = primCircleOp    (r,g,b)
+    ellipseBoxOp (r,g,b,_)  = primEllipseBox  (fromIntegral r,fromIntegral g,fromIntegral b,0)
+    rectOp       (r,g,b,_)  = primRectOp      (r,g,b)
+    fillPolyOp   (r,g,b,_)  = primFillPolyOp  (r,g,b)
+    ellipseOp    (r,g,b,_)  = primEllipseOp   (r,g,b)
+
+instance Drawable BGR D8 where
+    type Color BGR D8 = (D8,D8,D8)
+    putTextOp    (r,g,b)  = primTextOp      (r,g,b)
+    lineOp       (r,g,b)  = primLineOp      (r,g,b)
+    circleOp     (r,g,b)  = primCircleOp    (r,g,b)
+    ellipseBoxOp (r,g,b)  = primEllipseBox  (fromIntegral r,fromIntegral g,fromIntegral b,0)
+    rectOp       (r,g,b)  = primRectOp      (r,g,b)
+    fillPolyOp   (r,g,b)  = primFillPolyOp  (r,g,b)
+    ellipseOp    (r,g,b)  = primEllipseOp   (r,g,b)
+
 instance Drawable RGB D8 where
     type Color RGB D8 = (D8,D8,D8)
     putTextOp    (r,g,b)  = primTextOp      (r,g,b)
@@ -173,10 +193,10 @@ instance Drawable CV.Image.Complex D32 where
 
 instance Drawable GrayScale D8 where
     type Color GrayScale D8 = D8
-    putTextOp color = primTextOp (color,color,color) 
-    lineOp c = primLineOp (c,c,c) 
+    putTextOp color = primTextOp (color,color,color)
+    lineOp c = primLineOp (c,c,c)
     circleOp c = primCircleOp (c,c,c)
-    ellipseBoxOp c  = primEllipseBox (fromIntegral c,fromIntegral c,fromIntegral c,0) 
+    ellipseBoxOp c  = primEllipseBox (fromIntegral c,fromIntegral c,fromIntegral c,0)
     rectOp c = primRectOp (c,c,c)
     fillPolyOp c = primFillPolyOp (c,c,c)
     ellipseOp  c = primEllipseOp (c,c,c)
@@ -221,8 +241,8 @@ drawLinesOp color thickness segments =
 
 -- | Draw a polyline
 drawPolyLineOp :: Drawable c d => Color c d -> Int -> [((Int, Int))] -> CV.ImageOp.ImageOperation c d
-drawPolyLineOp color thickness segments = 
-    foldl (#>) nonOp 
+drawPolyLineOp color thickness segments =
+    foldl (#>) nonOp
      $ map (\(a,b) -> lineOp color thickness a b) $ zip segments (tail segments)
 
 -- | Apply drawLinesOp to an image
@@ -258,6 +278,3 @@ circle center r color s i = unsafeOperate (circleOp color center r s) i
 floodfill :: (Int, Int) -> D32 -> D32 -> D32 -> Bool -> Image GrayScale D32 -> Image GrayScale D32
 floodfill (x,y) color low high floats =
     unsafeOperate (fillOp (x,y) color low high floats)
-
-
-
