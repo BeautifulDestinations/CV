@@ -818,10 +818,10 @@ void plainBlit(IplImage *a, IplImage *b, int offset_y, int offset_x)
             else if (a->nChannels ==4 && b->nChannels == 4)
             {
               int dx = j+offset_x; int dy = i+offset_y;
-              UGET4C(a,0,j+dx,i+dy) = UGET4C(b,0,j,i);
-              UGET4C(a,1,j+dx,i+dy) = UGET4C(b,1,j,i);
-              UGET4C(a,2,j+dx,i+dy) = UGET4C(b,2,j,i);
-              UGET4C(a,3,j+dx,i+dy) = UGET4C(b,3,j,i);
+              UGET4C(a,0,dx,dy) = UGET4C(b,0,j,i);
+              UGET4C(a,1,dx,dy) = UGET4C(b,1,j,i);
+              UGET4C(a,2,dx,dy) = UGET4C(b,2,j,i);
+              UGET4C(a,3,dx,dy) = UGET4C(b,3,j,i);
             }
             else {printf("Can't blit this - pic weird number of channels\n"); abort();}
 
