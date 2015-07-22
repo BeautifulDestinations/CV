@@ -97,6 +97,7 @@ module CV.Image (
 , rgbToBgr
 , bgraTobgr8
 , bgrTobgra8
+, bgraToGray8
 , cloneTo64F
 , unsafeImageTo32F
 , unsafeImageTo64F
@@ -547,6 +548,9 @@ rgbToYUV = S . convertTo RGB2YUV 3 . unS
 
 rgbToGray :: Image RGB D32 -> Image GrayScale D32
 rgbToGray = S . convertTo RGB2GRAY 1 . unS
+
+bgraToGray8 :: Image BGRA D8 -> Image GrayScale D8
+bgraToGray8 = S . convert8UTo BGR2GRAY 1 . unS
 
 rgbToGray8 :: Image RGB D8 -> Image GrayScale D8
 rgbToGray8 = S . convert8UTo RGB2GRAY 1 . unS
