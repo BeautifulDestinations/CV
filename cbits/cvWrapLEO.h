@@ -30,6 +30,7 @@ void wrapSubS(const CvArr *src, double s,CvArr *dst);
 void wrapAddS(const CvArr *src, double s, CvArr *dst);
 
 double wrapAvg(const CvArr *src, const CvArr *mask);
+void wrapAvgChannels(const CvArr *src, const CvArr *maskm, double *c0, double *c1, double *c2 ,double *c3);
 double wrapStdDev(const CvArr *src);
 double wrapStdDevMask(const CvArr *src,const CvArr *mask);
 double wrapSum(const CvArr *src);

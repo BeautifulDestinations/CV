@@ -49,6 +49,7 @@ module CV.ImageMath(
   -- * Image statistics
 , CV.ImageMath.sum
 , average
+, averageChannels
 , countNonZero
 , averageMask
 , stdDeviation
@@ -371,6 +372,23 @@ countNonZero img = unsafePerformIO $ withGenImage img $ \cImg -> fromIntegral <
 -- | Calculates the average pixel value in whole image.
 average :: Image GrayScale D32 -> D32
 average = realToFrac.unsafePerformIO.average'
+
+-- | Calculates the average pixel value per each channel in whole image.
+averageChannels :: Image BGRA D8 -> (Double, Double, Double, Double)
+averageChannels = unsafePerformIO . averageChannels'
+  where
+    averageChannels' img = do
+      alloca $ \(c0p :: Ptr CDouble)->
+       alloca $ \(c1p :: Ptr CDouble)->
+        alloca $ \(c2p :: Ptr CDouble)->
+         alloca $ \(c3p :: Ptr CDouble)->
+           withGenImage img $ \image -> do {
+           {#call wrapAvgChannels#} image nullPtr c0p c1p c2p c3p;
+           c0 <- realToFrac <$> peek c0p;
+           c2 <- realToFrac <$> peek c2p;
+           c1 <- realToFrac <$> peek c1p;
+           c3 <- realToFrac <$> peek c3p;
+           return (c0,c1,c2,c3);}
 
 -- | Calculates the average value for pixels that have non-zero mask value.
 averageMask :: Image GrayScale D32 -> Image GrayScale D8 -> D32

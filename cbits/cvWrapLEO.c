@@ -193,6 +193,16 @@ double wrapAvg(const CvArr *src, const CvArr *mask)
     return avg.val[0];
 }
 
+void wrapAvgChannels(const CvArr *src, const CvArr *mask, double *c0, double *c1, double *c2, double *c3)
+{
+    CvScalar avg = cvAvg(src,mask);
+    (* c0) = avg.val[0];
+    (* c1) = avg.val[1];
+    (* c2) = avg.val[2];
+    (* c3) = avg.val[3];
+    return;
+}
+
 double wrapStdDev(const CvArr *src)
 {
     CvScalar dev;
