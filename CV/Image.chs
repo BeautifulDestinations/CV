@@ -1,4 +1,4 @@
-{-#LANGUAGE ForeignFunctionInterface, ViewPatterns,ParallelListComp, FlexibleInstances, FlexibleContexts, TypeFamilies, EmptyDataDecls, ScopedTypeVariables, StandaloneDeriving, DeriveDataTypeable, UndecidableInstances, MultiParamTypeClasses #-}
+{-#LANGUAGE ForeignFunctionInterface, ViewPatterns,ParallelListComp, FlexibleInstances, FlexibleContexts, TypeFamilies, EmptyDataDecls, ScopedTypeVariables, StandaloneDeriving, DeriveDataTypeable, UndecidableInstances, MultiParamTypeClasses, RecordWildCards #-}
 #include "cvWrapLEO.h"
 module CV.Image (
 -- * Basic types
@@ -43,7 +43,11 @@ module CV.Image (
 
 -- * IO operations
 , Loadable(..)
+, JPEGSaveSettings(..)
+, PNGSaveSettings(..)
+, SaveImageSettings
 , saveImage
+, saveBGRAImage
 , loadColorImage
 , loadColorImage8
 , loadColorImage8'
@@ -156,6 +160,7 @@ import Control.Monad
 import Control.Exception
 import Data.Data
 import Data.Typeable
+import Data.Default
 
 import Utils.GeometryClass
 import Control.Applicative hiding (empty)
@@ -850,17 +855,100 @@ instance Save (Image GrayScale D8) where
 instance Save (Image GrayScale D32) where
     save filename image = primitiveSave filename (unS . unsafeImageTo8Bit $ image)
 
+data JPEGSaveSettings = JPEGSaveSettings { jpegQuality ::  Maybe Int } deriving (Show, Eq)
+
+instance Default JPEGSaveSettings where
+  def = JPEGSaveSettings Nothing
+
+data PNGSaveSettings =  PNGSaveSettings
+  { pngCompression :: Maybe Int
+  , pngStrategy :: Maybe Int
+  , pngBilevel :: Maybe Int
+  , pngStrategyDefault :: Maybe Int
+  , pngStrategyFiltered :: Maybe Int
+  , pngStrategyHuffmanOnly :: Maybe Int
+  , pngStrategyRLE:: Maybe Int
+  , pngStrategyFixed :: Maybe Int
+  } deriving (Eq, Show)
+instance Default PNGSaveSettings where
+  def = PNGSaveSettings Nothing
+                        Nothing
+                        Nothing
+                        Nothing
+                        Nothing
+                        Nothing
+                        Nothing
+                        Nothing
+
+#c
+enum SaveImageCodes {
+  SICJPEGQuality =CV_IMWRITE_JPEG_QUALITY,
+  SICPNGCompression =CV_IMWRITE_PNG_COMPRESSION,
+  SICPNGStrategy =CV_IMWRITE_PNG_STRATEGY,
+  SICPNGBilevel =CV_IMWRITE_PNG_BILEVEL,
+  SICPNGStrategyDefault =CV_IMWRITE_PNG_STRATEGY_DEFAULT,
+  SICPNGStrategyFiltered =CV_IMWRITE_PNG_STRATEGY_FILTERED,
+  SICPNGStrategyHuffmanOnly =CV_IMWRITE_PNG_STRATEGY_HUFFMAN_ONLY,
+  SICPNGStrategyRLE =CV_IMWRITE_PNG_STRATEGY_RLE,
+  SICPNGStrategyFixed =CV_IMWRITE_PNG_STRATEGY_FIXED,
+  SICPXMBinary =CV_IMWRITE_PXM_BINARY
+     };
+#endc
+
+{#enum SaveImageCodes {}#}
+deriving instance Show SaveImageCodes
+
+class SaveImageSettings a where
+  toParamList :: a -> [Int]
+
+writeParam :: SaveImageCodes -> Maybe Int -> [Int] -> [Int]
+writeParam code (Just value) = (++) [fromIntegral (fromEnum code), value, 0]
+writeParam _ _ = id
+
+instance SaveImageSettings JPEGSaveSettings where
+  toParamList JPEGSaveSettings{..} =
+    writeParam SICJPEGQuality jpegQuality []
+
+instance SaveImageSettings PNGSaveSettings where
+  toParamList PNGSaveSettings{..} =
+    writeParam SICPNGCompression pngCompression
+    $ writeParam SICPNGStrategy pngStrategy
+    $ writeParam SICPNGBilevel pngBilevel
+    $ writeParam SICPNGStrategyDefault pngStrategyDefault
+    $ writeParam SICPNGStrategyFiltered pngStrategyFiltered
+    $ writeParam SICPNGStrategyHuffmanOnly pngStrategyHuffmanOnly
+    $ writeParam SICPNGStrategyRLE pngStrategyRLE
+    $ writeParam SICPNGStrategyFixed pngStrategyFixed []
+
+checkDirectory :: FilePath -> IO ()
+checkDirectory filename = do
+  exists <- doesDirectoryExist (takeDirectory filename)
+  when (not exists) $ throw (CvIOError $ "Directory does not exist: " ++ (takeDirectory filename))
+
 primitiveSave :: FilePath -> BareImage -> IO ()
 primitiveSave filename fpi = do
-       exists <- doesDirectoryExist (takeDirectory filename)
-       when (not exists) $ throw (CvIOError $ "Directory does not exist: " ++ (takeDirectory filename))
-       withCString  filename $ \name  ->
-        withGenBareImage fpi    $ \cvArr ->
-         alloca (\defs -> poke defs 0 >> {#call cvSaveImage #} name cvArr defs >> return ())
+   checkDirectory filename
+   withCString  filename $ \name  ->
+    withGenBareImage fpi    $ \cvArr ->
+     alloca (\defs -> poke defs 0 >> {#call cvSaveImage #} name cvArr defs >> return ())
 
--- |Save an image as 8 bit gray scale
+primitiveSave' :: SaveImageSettings a => FilePath -> BareImage -> a -> IO ()
+primitiveSave' filename fpi saveParam = do
+   let sp = map fromIntegral $ toParamList saveParam
+   checkDirectory filename
+   withCString  filename $ \name  ->
+    withGenBareImage fpi    $ \cvArr ->
+     allocaArray (length sp) (\defs -> pokeArray defs sp >> {#call cvSaveImage #} name cvArr defs >> return ())
+
+
+-- |Save an image
 saveImage :: (Save (Image c d)) => FilePath -> Image c d ->  IO ()
 saveImage = save
+
+-- Save Image BGRA D8 with compression settings
+saveBGRAImage :: SaveImageSettings a => FilePath -> Image BGRA D8 -> a -> IO ()
+saveBGRAImage filename image =
+  primitiveSave' filename (unS $ image)
 
 getArea :: (Sized a,Num b, Size a ~ (b,b)) => a -> b
 getArea = uncurry (*).getSize
