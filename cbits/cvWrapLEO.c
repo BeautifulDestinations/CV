@@ -786,24 +786,25 @@ void alphaBlit2(IplImage *a, IplImage *b, int offset_y, int offset_x)
     int i,j;
     CvSize bSize = cvGetSize(b);
     CvSize aSize = cvGetSize(a);
-    // printf("A Height: %d , Width: %d",aSize.height, aSize.width);
-    // printf("B Height: %d , Width: %d",bSize.height, bSize.width);
-    uint8_t aA, bA, fV0, fV1, fV2;
     int dx, dy;
+    double aA, bA, fV0, fV1, fV2, bV0, bV1, bV2;
     for (i=0; i<bSize.height; i++)
         for (j=0; j<bSize.width; j++) {
             dx = j+offset_x;
             dy = i+offset_y;
-            if (dx >= aSize.width || dy >= aSize.height || dy < 0 || dx< 0) continue;
-            aA = UGET4C(a,3,dx,dy);
-            bA = UGET4C(b,3,j,i);
-            fV0 = (aA+bA) > 0 ? (UGET4C(b,0,j,i)*bA+UGET4C(a,0,dx,dy)*aA)/(aA+bA) : UGET4C(b,0,j,i) ;
-            fV1 = (aA+bA) > 0 ? (UGET4C(b,1,j,i)*bA+UGET4C(a,1,dx,dy)*aA)/(aA+bA) : UGET4C(b,1,j,i) ;
-            fV2 = (aA+bA) > 0 ? (UGET4C(b,2,j,i)*bA+UGET4C(a,2,dx,dy)*aA)/(aA+bA) : UGET4C(b,2,j,i) ;
-            UGET4C(a,0,dx,dy) = fV0;
-            UGET4C(a,1,dx,dy) = fV1;
-            UGET4C(a,2,dx,dy) = fV2;
-            UGET4C(a,3,dx,dy) = (aA+bA);
+            if (dx >= aSize.width || dy >= aSize.height || dy < 0 || dx < 0) continue;
+            bA = UGET4C(b,3,j,i)/255.0;
+            fV0 = UGET4C(b,0,j,i)/255.0*bA;
+            fV1 = UGET4C(b,1,j,i)/255.0*bA;
+            fV2 = UGET4C(b,2,j,i)/255.0*bA;
+            aA = UGET4C(a,3,dx,dy)/255.0;
+            bV0 = UGET4C(a,0,dx,dy)/255.0*aA;
+            bV1 = UGET4C(a,1,dx,dy)/255.0*aA;
+            bV2 = UGET4C(a,2,dx,dy)/255.0*aA;
+            UGET4C(a,0,dx,dy) = 255 * (fV0 + bV0 * (1.0 - bA));
+            UGET4C(a,1,dx,dy) = 255 * (fV1 + bV1 * (1.0 - bA));
+            UGET4C(a,2,dx,dy) = 255 * (fV2 + bV2 * (1.0 - bA));
+            UGET4C(a,3,dx,dy) = 255 * ((aA+bA) - (aA*bA));
         }
 }
 
