@@ -902,12 +902,12 @@ class SaveImageSettings a where
   toParamList :: a -> [Int]
 
 writeParam :: SaveImageCodes -> Maybe Int -> [Int] -> [Int]
-writeParam code (Just value) = (++) [fromIntegral (fromEnum code), value, 0]
+writeParam code (Just value) = (++) [fromIntegral (fromEnum code), value]
 writeParam _ _ = id
 
 instance SaveImageSettings JPEGSaveSettings where
   toParamList JPEGSaveSettings{..} =
-    writeParam SICJPEGQuality jpegQuality []
+    writeParam SICJPEGQuality jpegQuality [0]
 
 instance SaveImageSettings PNGSaveSettings where
   toParamList PNGSaveSettings{..} =
@@ -918,7 +918,7 @@ instance SaveImageSettings PNGSaveSettings where
     $ writeParam SICPNGStrategyFiltered pngStrategyFiltered
     $ writeParam SICPNGStrategyHuffmanOnly pngStrategyHuffmanOnly
     $ writeParam SICPNGStrategyRLE pngStrategyRLE
-    $ writeParam SICPNGStrategyFixed pngStrategyFixed []
+    $ writeParam SICPNGStrategyFixed pngStrategyFixed [0]
 
 checkDirectory :: FilePath -> IO ()
 checkDirectory filename = do
